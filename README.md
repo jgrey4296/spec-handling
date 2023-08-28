@@ -7,8 +7,8 @@ Provides:
 - `run-spec-handlers` : for when you want to get your specs reset to what you registered
 - `spec-handling-new!` : register a new type of spec which is called when you run the handlers.
 - `spec-handling-add!` : add a new spec, ready to re-use.
+- `spec-handling-setq!` : used like setq, but is triggered in `run-spec-handlers`
 - `spec-handling-report` : a command to produce an org file, telling you where new spec types are declared, and where implementations are defined.
-
 
 
 As an Example:
@@ -69,6 +69,16 @@ As an Example:
 ;; Up until now, nothing has changed in evil-fold-list
 ;; This call changes that:
 (run-spec-handlers)
+
+;; Some mode decides to fuck with evil-fold-list:
+(setq evil-fold-list nil)
+
+;; So you just call the handlers again:
+(run-spec-handlers)
+
+
+;; Check where you defined things:
+(spec-handling-report)
 
 ```
 
