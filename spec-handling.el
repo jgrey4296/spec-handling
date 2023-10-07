@@ -257,14 +257,18 @@ return the generated feature name of this spec type
                do
                (mapcar (-compose (-rpartial #'puthash t unique-files) #'cadr) vals)
                (let ((defs (--select (-contains? '(:definition :hooks-definition) (car it)) vals))
+                     (details-plist (gethash key spec-handling-docs))
                      (adds (--select (equal :addition (car it)) vals))
                      (exts (--select (equal :extension (car it)) vals))
                      (sets (--select (equal :setting (car it)) vals))
                      )
                  (princ (format "** SPEC: %s\n" key))
+
                  (if defs
                      (dolist (def defs) (princ (format "*** Defined in: [[%s]]\n" (cadr def))))
                    (princ "*** SPEC NOT DEFINED ------------------------------\n"))
+                 (princ (string-join (spec-handling--build-description key details-plist "***") "\n"))
+
                  (if (null adds)
                      (princ "\n*** No Additions Defined\n")
                    (princ "\n*** Additions Defined in: \n")
@@ -293,29 +297,33 @@ return the generated feature name of this spec type
     ;; TODO build a h
     (with-help-window (help-buffer)
       (with-current-buffer standard-output
-        (insert (format "Spec Handler: %s\n" chosen))
-
-        (insert "\n ---- Spec Target Variable: \n")
-        (if-let (target (plist-get details-plist :target))
-            (princ target)
-          (insert "None")
-          )
-
-        (insert "\n\n\n ---- Spec Documentation: \n")
-        (-if-let (doc (plist-get details-plist :doc))
-            (princ doc)
-          (insert "No Defined Documentation\n")
-          )
-
-        (insert "\n\n\n ---- Spec Structure: \n")
-        (-if-let (struct (plist-get details-plist :structure))
-            (princ (helpful--pretty-print struct))
-          (insert "No Defined Structure\n")
-
-          )
+        (princ (format "Spec Handler: %s\n" chosen))
+        (princ (string-join (spec-handling--build-description chosen details-plist) "\n"))
         )
       )
     )
+  )
+
+(defun spec-handling--build-description (chosen details-plist &optional leader)
+  (list
+   (format "%s Target Variable: %s" (or leader "----") (or (plist-get details-plist :target) "None"))
+
+   ""
+   (format "%s Spec Documentation:" (or leader "----"))
+   ""
+   (-if-let (doc (plist-get details-plist :doc))
+       (format "%s" doc)
+     "No Defined Documentation"
+     )
+
+   ""
+   (format "%s Spec Structure:" (or leader "----"))
+   ""
+   (-if-let (struct (plist-get details-plist :structure))
+       (helpful--pretty-print struct)
+     "No Defined Structure"
+     )
+   )
   )
 
 (provide 'spec-handling)
