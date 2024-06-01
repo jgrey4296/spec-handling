@@ -9,6 +9,7 @@
 (defvar spec-handling-feature-set nil)
 
 (defvar spec-handling-types (make-hash-table :test 'equal) "Records where handlers are defined and used")
+
 (defvar spec-handling-docs (make-hash-table :test 'equal) "Contains plists of handler documentation")
 
 (defconst spec-handling-gensym-plist '(:table "spec-table"
@@ -180,14 +181,14 @@ return the generated feature name of this spec type
   )
 
 ;;;###autoload
-(defmacro spec-handling-setq! (type &rest vals)
+(defmacro spec-handling-setq! (type priority &rest vals)
   " generate a setq hook "
   (let ((set-name (spec-handling--gensym type :set))
         (fname (macroexp-file-name)))
     `(progn
        (spec-handling--add-type (quote ,type) ,fname :setting)
        (fset (function ,set-name) (lambda () (setq ,@vals)))
-       (add-hook 'spec-handling-hook (function ,set-name) 99)
+       (add-hook 'spec-handling-hook (function ,set-name) ,priority)
       )
     )
   )
