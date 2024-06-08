@@ -106,7 +106,7 @@ this stops them being re-run repeatedly
 
 ;;;###autoload
 (cl-defmacro spec-handling-new! (type target &rest body
-                                      &key (sorted nil) (rmdups nil) (loop 'do)
+                                      &key (sorted nil) (rmdups nil) (loop 'do) (form 'basic)
                                       (doc nil) (struct nil) (optional nil) &allow-other-keys)
   " Simplifies Spec application and definition
 body is run for each (key . (vals)) of the spec-table and sets the value of target
@@ -115,6 +115,7 @@ if target is 'do, the specs are applied in the body and don't target a variable
 TODO: add spec format docstring
 
 return the generated feature name of this spec type
+
  "
   (let* ((table-name (spec-handling--gensym type :table))
          (reapply-name (spec-handling--gensym type :apply))
@@ -127,6 +128,7 @@ return the generated feature name of this spec type
                     ('t '(lambda (x y) (< (car x) (car y))))
                     (_ sorted)))
          (unless-check (pcase loop-kw
+                         ((guard (eq (unquote! form) 'override)) `(nil))
                          ('hook `((-contains? spec-handling-hook (function ,reapply-name))))
                          (_     `((featurep (quote ,feature-name))))
                          )
