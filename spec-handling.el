@@ -157,6 +157,7 @@ return the generated feature name of this spec type
          (clean-body (sh--pop-kwds-from-body body))
          )
     ;; Remove keywords and their values from body:
+    (cl-assert (or override (not (fboundp reapply-name))) "Handler is already defined: %s" reapply-name)
     (cl-assert clean-body t "Body of a spec handling definition can not be empty")
     (cl-assert (memq loop-kw '(collect append do hook)))
     (cl-assert (not (eq loop-kw 'hook)) "Use spec-handling-new-hook! instead")
@@ -202,7 +203,7 @@ return the generated feature name of this spec type
 
 ;;;###autoload
 (cl-defmacro sh-new-hook! (id &rest body
-                              &key (doc nil) (struct nil) (optional nil)
+                              &key (doc nil) (struct nil) (optional nil) (override nil)
                               &allow-other-keys)
   " Register a new hook spec "
   (let* ((table-name   (sh--gensym id :table))
@@ -210,10 +211,13 @@ return the generated feature name of this spec type
          (feature-name (sh--gensym id :feature))
          (fname (macroexp-file-name))
          (vals  (make-symbol "vals"))
-         (unless-check `((-contains? sh-hook (function ,reapply-name))))
+         (unless-check (pcase override
+                         ('nil `((-contains? sh-hook (function ,reapply-name))))
+                         ('t (nil))))
          (clean-body (sh--pop-kwds-from-body body))
          )
     (cl-assert clean-body t "Body of a spec handling hook instance can not be empty")
+    (cl-assert (or override (not (fboundp reapply-name))) "Hook Handler is already defined: %s" reapply-name)
     `(unless ,@unless-check
        (sh--add-source (quote ,id) ,fname :hooks-definition
                        ,doc ,struct (quote ,target) ,optional)
@@ -243,6 +247,7 @@ return the generated feature name of this spec type
   " generate a setq hook "
   (let ((set-name (sh--gensym id :set))
         (fname (macroexp-file-name)))
+    (cl-assert (fboundp set-name) "Tried to re-define: %s" set-name)
     `(progn
        (sh--add-source (quote ,id) ,fname :setting)
        (fset (function ,set-name) (lambda () (setq ,@vals)))
