@@ -129,7 +129,7 @@ this stops them being re-run repeatedly
 ;;;###autoload
 (cl-defmacro spec-handling-new! (id doc &rest body
                          &key (target nil) (sorted nil)
-                         (dedup nil) (loop 'do) (override nil)
+                         (dedup nil) (loop do) (override nil)
                          (struct nil) (optional nil) &allow-other-keys)
   " Register a Spec Handler Type.
 Each handler type is uniquely id'd, and describes how registered specs are applied.
@@ -165,17 +165,17 @@ return the generated feature name of this spec type
                             (s-concat doc (when struct (format "\n\nExpected Struct: %s" struct)))))
          )
     ;; Remove keywords and their values from body:
-    (cl-assert (or override (not (fboundp reapply-name))) "Handler is already defined: %s" reapply-name)
-    (cl-assert clean-body t "Body of a spec handling definition can not be empty")
-    (cl-assert (memq loop-kw '(collect append do hook)))
-    (cl-assert (not (eq loop-kw 'hook)) "Use spec-handling-new-hook! instead")
-    (cl-assert (or target (eq loop-kw 'do)) t "Must have a target if loop isnt a 'do")
-    (cl-assert (not (and target (eq loop-kw 'do))) t "Can't have a target if loop is 'do")
-    (cl-assert (not (and sorted (eq loop-kw 'do))) t "Sorting a 'do or 'hook loop doesn't make sense")
+    (cl-assert (or override (not (fboundp reapply-name))) (format "Handler is already defined: %s:%s" fname reapply-name))
+    (cl-assert clean-body t (format "Body of a spec handling definition can not be empty : %s" fname))
+    (cl-assert (not (eq loop 'hook)) (format "Use spec-handling-new-hook! instead : %s" fname))
+    (cl-assert (memq loop-kw '(collect append do)) t (format "Use a :loop of do | collect | append, not '%s' : %s" loop-kw fname))
+    (cl-assert (or target (eq loop-kw 'do)) t (format "Must have a target if loop isnt a 'do : %s : %s" fname loop-kw))
+    (cl-assert (not (and target (eq loop-kw 'do))) t (format "Can't have a target if loop is 'do : %s : %s : %s" loop fname target))
+    (cl-assert (not (and sorted (eq loop-kw 'do))) t (format "Sorting a 'do or 'hook loop doesn't make sense : %s" fname))
     ;; The macro's returned code:
      `(unless ,@unless-check
         (sh--add-source (quote ,id) ,fname :definition
-                        ,doc ,struct ,(if target (quote target) nil) ,optional)
+                        ,doc ,struct (quote ,target) ,optional)
         (defvar ,table-name (make-hash-table :test 'equal),(format "Macro generated hash-table to store specs for %s" id))
         (fset (function ,reapply-name)
               (lambda (&optional dry)
@@ -222,20 +222,20 @@ return the generated feature name of this spec type
                          ('nil `((-contains? sh-hook (function ,reapply-name))))
                          ('t (nil))))
          (clean-body (sh--pop-kwds-from-body body))
-         (docstring (apply #'s-concat doc (when struct (list "\n\nExpected Struct: " struct))))
+         (docstring (format sh-doc-str id fname (list :hook t)
+                            (s-concat doc (when struct (format "\n\nExpected Struct: %s" struct)))))
          )
     (cl-assert clean-body t "Body of a spec handling hook instance can not be empty")
     (cl-assert (or override (not (fboundp reapply-name))) "Hook Handler is already defined: %s" reapply-name)
     `(unless ,@unless-check
        (sh--add-source (quote ,id) ,fname :hooks-definition
-                       ,doc ,struct (quote ,target) ,optional)
+                       ,doc ,struct nil ,optional)
        (defvar ,table-name (make-hash-table :test 'equal)
          ,(format "Macro generated hash-table to store specs for %s" id))
        (fset (function ,reapply-name)
 
              (lambda (&optional dry)
                ,docstring
-               ,(format sh-doc-str id fname sorted loop)
                (interactive)
                (cl-loop for key being the hash-keys of ,table-name
                         using (hash-values val)
@@ -257,7 +257,7 @@ return the generated feature name of this spec type
   " generate a setq hook "
   (let ((set-name (sh--gensym id :set))
         (fname (macroexp-file-name)))
-    (cl-assert (fboundp set-name) "Tried to re-define: %s" set-name)
+    (cl-assert (not (fboundp set-name)) (format "Tried to re-define: %s" set-name))
     `(progn
        (sh--add-source (quote ,id) ,fname :setting)
        (fset (function ,set-name) (lambda () (setq ,@vals)))
@@ -281,16 +281,13 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
          (feature-name (sh--gensym id :feature))
          (add-fn-name  (sh--gensym id fname :add))
          (clean-rules (sh--pop-kwds-from-body rules))
-         (form (pcase (sh-unquote! form)
-                 ('override :override)
-                 ('extend :extension)
-                 (_ :addition)))
+         (form (list :override override :extension extend))
          )
     `(with-eval-after-load (quote ,feature-name)
-       (sh--add-source (quote ,id) ,fname ,form)
+       (sh--add-source (quote ,id) ,fname (quote ,form))
        (cl-loop for ,val in (list ,@rules)
-                for redefine = (null (gethash (car ,val) ,table-name nil))
-                if (and redefine (not (or ,override extend))) do
+                for redefine = (gethash (car ,val) ,table-name nil)
+                if (and redefine ,(not (or override extend))) do
                 (message "Spec Handling Add: Attempt to override Spec: %s - %s - %s - %s"
                          (quote ,id) (car ,val) (gethash (car ,val) ,table-name) ,fname)
                 else
