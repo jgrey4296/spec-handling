@@ -118,7 +118,7 @@ Args: %s
                                   (t
                                    x))
                                  )
-                               names)
+                               (-reject #'null names))
                        sh-symbol-separator
                        )
           )
@@ -139,25 +139,21 @@ Args: %s
   nil
   )
 
-(defun sh-gen-new-hook (id body)
+(defun sh-gen-new-hook (key val id body)
   " generate the loop body for a new hook
+Creates a partial function  bound to 'val'
+and adds it to 'id'-hook
 
  "
-  `(do
-    (cl-loop for mode in (ensure-list key)
-             do
-             (let ((fn-name (sh-gensym (quote ,id) mode :mode-hook)))
-               (fset fn-name
-                     (-partial (lambda (val)
-                                 ,@body
-                                 )
-                               val)
-                     )
-               (add-hook (intern (format "%s-hook" mode)) fn-name)
-               )
-             )
-    )
-  )
+  `(cl-loop for mode in (ensure-list ,key)
+            for fn-name = (sh-gensym (quote ,id) mode :mode-hook)
+            do
+            (fset fn-name (-partial (lambda (val) ,@body) ,val))
+            if (s-suffix? "-hook" (format "%s" mode))
+            do      (add-hook mode fn-name)
+            else do (add-hook (intern (format "%s-hook" mode)) fn-name)
+            )
+)
 
 (defun sh-run-handlers ()
   " Run spec handlers defined with spec-handling-new! and spec-handling-add! "
@@ -169,10 +165,11 @@ Args: %s
            )
   )
 
-(cl-defmacro sh-new-handler (id doc &rest body
-                         &key (target nil) (sorted nil) (setup nil)
-                         (dedup nil) (loop do) (override nil)
-                         (struct nil) &allow-other-keys)
+(cl-defmacro sh-new-handler (id (key val) doc
+                                &rest body
+                                &key (target nil) (sorted nil) (setup nil)
+                                (dedup nil) (loop do) (override nil) (example nil)
+                                (struct nil) &allow-other-keys)
   " Register a Spec Handler Type.
          Each handler type is uniquely id'd, and describes how registered specs are applied.
 
@@ -188,6 +185,7 @@ Args: %s
 
          return the generated feature name of this spec type
  "
+  (declare (indent defun))
   (let* ((table-name   (sh-gensym id :table))
          (apply-fn-name (sh-gensym id :apply))
          (feature-name (sh-gensym id :feature))
@@ -224,8 +222,8 @@ Args: %s
                 ,docstring
                 (interactive)
                 ,setup
-                (let ((,vals (cl-loop for key being the hash-keys of ,table-name
-                                      using (hash-values val)
+                (let ((,vals (cl-loop for ,key being the hash-keys of ,table-name
+                                      using (hash-values ,val)
                                       ,loop-kw
                                       ,@clean-body
                                       )))
@@ -251,13 +249,18 @@ Args: %s
      )
   )
 
-(cl-defmacro sh-new-hook (id doc &rest body
-                              &key (struct nil) (optional nil) (override nil)
-                              &allow-other-keys)
-  " Register a new hook spec "
-  (let* ((table-name   (sh-gensym id :table))
+(cl-defmacro sh-new-hook (id (key val) doc
+                             &rest body
+                             &key (struct nil) (optional nil) (override nil) (example nil)
+                             &allow-other-keys)
+  " Register a new hook handler.
+(key val) are the names of the bound params available while creating hooks for a spec.
+Each Spec registered added to the  `key'-hook
+"
+  (declare (indent defun))
+  (let* ((table-name    (sh-gensym id :table))
          (apply-fn-name (sh-gensym id :apply))
-         (feature-name (sh-gensym id :feature))
+         (feature-name  (sh-gensym id :feature))
          (fname (macroexp-file-name))
          (vals  (make-symbol "vals"))
          (unless-check (pcase override
@@ -278,10 +281,11 @@ Args: %s
              (lambda (&optional dry)
                ,docstring
                (interactive)
-               (cl-loop for key being the hash-keys of ,table-name
-                        using (hash-values val)
+               (cl-loop for ,key being the hash-keys of ,table-name
+                        using (hash-values ,val)
                         ;; loop over keys/modes and create fns, adding to %mode-hook
-                        ,@(sh-gen-new-hook id clean-body)
+                        do
+                        ,(sh-gen-new-hook key val id clean-body)
                         )
                )
              )
@@ -293,27 +297,54 @@ Args: %s
     )
   )
 
-(defmacro sh-register-setq (id priority &rest vals)
-  " generate a setq hook "
-  (let ((set-name (sh-gensym id :set))
-        (fname (macroexp-file-name)))
-    (when (fboundp set-name)
-      (display-warning 'speckler (format "Tried to re-define setq: %s in %s" set-name fname)))
-    `(progn
-       (sh-add-source (quote ,id) ,fname 'setq)
-       (fset (function ,set-name) (lambda () (setq ,@vals)))
-       (add-hook 'sh-hook (function ,set-name) ,priority)
-      )
-    )
+(cl-defmacro sh-register-setq (id (&optional mode mode-priority)
+                                  &rest vals
+                                  &key (priority 50) override
+                                  &allow-other-keys)
+  " generate a setq hook
+use :priority int to set the priority the set hook is added at
+
+if a mode is provided, the hook is added to mode-hook when speckler-go! is called
+mode-priority allows mode-specific priority hook control
+ "
+  (declare (indent defun))
+  (let* ((set-name (sh-gensym id :set))
+         (set-mode-name (sh-gensym id mode :set))
+         (fname (macroexp-file-name))
+         (clean-vals (sh-pop-kwds-from-body vals))
+         (hook-body (if mode
+                        `(add-hook ,(intern (format "%s-hook" mode))
+                          (function ,set-mode-name) ,(or mode-priority 50))
+                      `(setq ,@clean-vals)))
+         (mode-hook (when mode
+                      `(fset (function ,set-mode-name)
+                        (lambda ()
+                          ,(format "%s specific speckler-setq hook" mode)
+                          (setq-local ,@clean-vals)))))
+         (override-warn (unless override
+                          `(when (fboundp ,set-name)
+                            (display-warning 'speckler ,(format "Tried to re-define setq: %s in %s" set-name fname)))))
+         )
+         `(progn
+            ,override-warn
+            (sh-add-source (quote ,id) ,fname 'setq)
+            ,mode-hook
+            (fset (function ,set-name) (lambda ()
+                                         ,(format "Speckler hook for applying %s values " id)
+                                         ,hook-body))
+            (add-hook 'sh-hook (function ,set-name) ,priority)
+            )
+         )
   )
 
-(cl-defmacro sh-add-spec (id &rest rules &key (override nil) (extend nil) &allow-other-keys)
+(cl-defmacro sh-add-spec (id () &rest rules &key (override nil) (extend nil) &allow-other-keys)
   " Add an instance of a spec handler, that was defined with spec-handling-new!
 
-         Rules are a list of values conforming to the handlers :struct definition.
-         eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
+Rules are a list of values conforming to the handlers :struct definition.
+eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
 
-         "
+"
+  (declare (indent defun))
   (let* ((fname   (macroexp-file-name))
          (val     (make-symbol "val"))
          (tempvar (make-symbol "curr"))
