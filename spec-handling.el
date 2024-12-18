@@ -27,7 +27,7 @@
 Source: %s
 Args: %s
 
-%s
+%s"
 )
 
 (cl-defstruct (sh-record)
