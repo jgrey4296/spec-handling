@@ -155,6 +155,7 @@ and adds it to 'id'-hook
             )
 )
 
+;;;###autoload (autoload 'speckler-go! "spec-handling" nil t) (defalias 'speckler-go! 'spec-handling-run-handlers)
 (defun sh-run-handlers ()
   " Run spec handlers defined with spec-handling-new! and spec-handling-add! "
   (interactive)
@@ -165,6 +166,7 @@ and adds it to 'id'-hook
            )
   )
 
+;;;###autoload (autoload 'speckler-new! "spec-handling" nil nil t) (defalias 'speckler-new! 'spec-handling-new-handler)
 (cl-defmacro sh-new-handler (id (key val) doc
                                 &rest body
                                 &key (target nil) (sorted nil) (setup nil)
@@ -249,6 +251,7 @@ and adds it to 'id'-hook
      )
   )
 
+;;;###autoload (autoload 'speckler-new-hook! "spec-handling" nil nil t) (defalias 'speckler-new-hook! 'spec-handling-new-hook)
 (cl-defmacro sh-new-hook (id (key val) doc
                              &rest body
                              &key (struct nil) (optional nil) (override nil) (example nil)
@@ -297,6 +300,7 @@ Each Spec registered added to the  `key'-hook
     )
   )
 
+;;;###autoload (autoload 'speckler-setq! "spec-handling" nil nil t) (defalias 'speckler-setq! 'spec-handling-register-setq)
 (cl-defmacro sh-register-setq (id (&optional mode mode-priority)
                                   &rest vals
                                   &key (priority 50) override
@@ -322,7 +326,7 @@ mode-priority allows mode-specific priority hook control
                           ,(format "%s specific speckler-setq hook" mode)
                           (setq-local ,@clean-vals)))))
          (override-warn (unless override
-                          `(when (fboundp ,set-name)
+                          `(when (fboundp (function ,set-name))
                             (display-warning 'speckler ,(format "Tried to re-define setq: %s in %s" set-name fname)))))
          )
          `(progn
@@ -337,6 +341,7 @@ mode-priority allows mode-specific priority hook control
          )
   )
 
+;;;###autoload (autoload 'speckler-add! "spec-handling" nil nil t) (defalias 'speckler-add! 'spech-handling-add-spec)
 (cl-defmacro sh-add-spec (id () &rest rules &key (override nil) (extend nil) &allow-other-keys)
   " Add an instance of a spec handler, that was defined with spec-handling-new!
 
@@ -374,6 +379,7 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
     )
   )
 
+;;;###autoload (autoload 'specker-clear! "spec-handling" nil t) (defalias 'specker-clear! 'spec-handling-clear-registry)
 (defun sh-clear-registry (id)
   " Clear a spec handler's registered instances,
          and return the feature name that represents it
@@ -403,6 +409,7 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
     )
   )
 
+;;;###autoload (autoload 'speckler-report! "spec-handling" nil t) (defalias 'speckler-report! 'spec-handling-report)
 (defun sh-report ()
   " Generate a report on registered spec handlers,
          and instances of those handlers.
@@ -429,6 +436,7 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
     )
   )
 
+;;;###autoload (autoload 'speckler-describe! "spec-handling" nil t) (defalias 'speckler-describe! 'spec-handling-describe)
 (defun sh-describe ()
   "Describe a specific spec handler"
   (interactive)
@@ -450,7 +458,7 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
          ;; (set-name      (sh-gensym chosen :set))
          )
     (append
-     ;; Core 
+     ;; Core
      (list
       (format "%s Handler: %s (%s)" leader chosen (length (sh-record-specs record)))
       (format "%s" (sh-record-doc record))
@@ -490,36 +498,8 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
      )
     )
   )
+
 ;; public aliases
-
-;;;###autoload
-(defalias 'speckler-new! #'spec-handling-new-handler)
-
-;;;###autoload
-(defalias 'speckler-new-hook! #'spec-handling-new-hook)
-
-;;;###autoload
-(defalias 'speckler-clear! #'spec-handling-clear-registry)
-
-;;;###autoload
-(defalias 'speckler-report! #'spec-handling-report)
-
-;;;###autoload
-(defalias 'speckler-describe! #'spec-handling-describe)
-
-;;;###autoload
-(defalias 'speckler-add! #'spec-handling-add-spec)
-
-;;;###autoload
-(defalias 'speckler-setq! #'spec-handling-register-setq)
-
-;;;###autoload
-(defalias 'speckler-go! #'spec-handling-run-handlers)
-
-;;;###autoload
-(defalias 'speckler-clear! #'spec-handling-clear-registry)
-
-;;;###autoload
 (defvaralias 'speckler-hook 'spec-handling-hook)
 
 (provide 'spec-handling)
