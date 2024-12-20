@@ -4,6 +4,7 @@
   (require 'cl-lib)
   (require 'benchmark)
   (require 'helpful)
+  (require 'jg-misc-macros)
   )
 
 (defvar sh-hook nil                               "Hooks registered to run each time spec handlers are re-applied")
@@ -51,15 +52,6 @@ Args: %s
       (cadr val)
     val
     )
-  )
-
-(defun sh-pop-kwds-from-body (body)
-  "Functions with &key and &rest include the keys in the body,
-  (and need &allow-other-keys.
-         This strips the kwds and their values off from the body
-         "
-  (while (and body (keywordp (car body))) (pop body) (pop body))
-  body
   )
 
 (defun sh-add-source (id file type &rest plist)
@@ -204,7 +196,7 @@ and adds it to 'id'-hook
                          ('t '(nil))
                          (_  `((featurep (quote ,feature-name))))
                          ))
-         (clean-body (sh-pop-kwds-from-body body))
+         (clean-body (pop-plist-from-body! body))
          (docstring (format sh-doc-str id fname (list :sorted sorted :loop loop)
                             (s-concat doc (when struct (format "\n\nExpected Struct: %s" struct)))))
          )
@@ -272,7 +264,7 @@ Each Spec registered added to the  `key'-hook
          (unless-check (pcase override
                          ('nil `((-contains? sh-hook (function ,apply-fn-name))))
                          ('t (nil))))
-         (clean-body (sh-pop-kwds-from-body body))
+         (clean-body (pop-plist-from-body! body))
          (docstring (format sh-doc-str id fname (list :hook t)
                             (s-concat doc (when struct (format "\n\nExpected Struct: %s" struct)))))
          )
@@ -319,7 +311,7 @@ mode-priority allows mode-specific priority hook control
   (let* ((set-name (sh-gensym id :set))
          (set-mode-name (sh-gensym id mode :set))
          (fname (macroexp-file-name))
-         (clean-vals (sh-pop-kwds-from-body vals))
+         (clean-vals (pop-plist-from-body! vals))
          (hook-body (if mode
                         `(add-hook ,(intern (format "%s-hook" mode))
                           (function ,set-mode-name) ,(or mode-priority 50))
@@ -360,7 +352,7 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
          (tempvar (make-symbol "curr"))
          (table-name   (sh-gensym id :table))
          (feature-name (sh-gensym id :feature))
-         (clean-rules (sh-pop-kwds-from-body rules))
+         (clean-rules (pop-plist-from-body! rules))
          (form (list :override override :extension extend))
          )
     `(with-eval-after-load (quote ,feature-name)
@@ -449,8 +441,9 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
   "Describe a specific spec handler"
   (interactive)
   (let* ((chosen (completing-read "Which Handler? " (hash-table-keys sh-sources)))
-        (record (gethash (intern chosen) sh-sources))
-        )
+         (record (gethash (intern chosen) sh-sources))
+         (temp-buffer-window-show-hook '(org-mode))
+         )
     (with-help-window (help-buffer)
         (princ (string-join (sh--build-description chosen record "*") "\n")))
       )
@@ -500,7 +493,8 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
          (list (format "%s No Specs Defined" subheading) "")
        (append (list (format "%s (%s) Specs Defined in:" subheading (length (sh-record-specs record))))
                (cl-loop for file in (sort (mapcar #'sh-record-file (sh-record-specs record)) #'string-lessp)
-                        collect (format "[[%s][%s]]" file (f-base (f-parent file))))
+                        when file
+                        collect (format "[[%s][%s]]" file (last (f-split (f-parent file)))))
                )
        )
      )
