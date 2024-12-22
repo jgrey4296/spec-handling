@@ -43,16 +43,6 @@ Args: %s
   (setqs     nil :list 'list)
   )
 
-(defun sh-unquote! (val)
-  "Generalized unquoting function
-  Does not recursively unquote.
-  "
-  (declare (pure t) (side-effect-free t))
-  (if (and (consp val) (memq (car val) '(quote function)))
-      (cadr val)
-    val
-    )
-  )
 
 (defun sh-add-source (id file type &rest plist)
   "register an id of spec handler and where it is used
@@ -187,7 +177,7 @@ and adds it to 'id'-hook
          (feature-name (sh-gensym id :feature))
          (fname (macroexp-file-name))
          (vals (make-symbol "vals"))
-         (loop-kw (sh-unquote! loop))
+         (loop-kw (unquote! loop))
          (sort-fn (pcase sorted
                     ('nil nil)
                     ('t '(lambda (x y) (< (car x) (car y))))
