@@ -4,7 +4,7 @@
   (require 'cl-lib)
   (require 'benchmark)
   (require 'helpful)
-  (require 'jg-misc-macros)
+  (require 'macro-tools--util)
   )
 
 (defvar sh-hook nil                               "Hooks registered to run each time spec handlers are re-applied")
@@ -344,8 +344,11 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
          (feature-name (sh-gensym id :feature))
          (clean-rules (pop-plist-from-body! rules))
          (form (list :override override :extension extend))
+         (eval-guard (if override
+                         '(progn)
+                         `(with-eval-after-load (quote ,feature-name))))
          )
-    `(with-eval-after-load (quote ,feature-name)
+    `(,@eval-guard
        (sh-add-source (quote ,id) ,fname 'spec)
        (cl-loop for ,val in (list ,@clean-rules)
                 for redefine = (gethash (car ,val) ,table-name nil)
