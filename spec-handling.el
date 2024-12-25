@@ -352,12 +352,12 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
        (sh-add-source (quote ,id) ,fname 'spec)
        (cl-loop for ,val in (list ,@clean-rules)
                 for redefine = (gethash (car ,val) ,table-name nil)
-                if (and redefine ,(not (or override extend))) do
+                if (and 'redefinecheck redefine ,(not (or override extend))) do
                 (display-warning 'speckler
-                                 (format "Attempt to override: %s - %s - %s"
+                                 (format "Attempt to override: %s - %s occurred in: %s"
                                          (quote ,id) (car ,val) ,fname))
                 else
-                if ,extend do
+                if (and 'extendcheck ,extend) do
                 (puthash (car ,val) (append
                                      (gethash (car ,val) ,table-name nil)
                                      (cdr ,val))
