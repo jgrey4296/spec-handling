@@ -131,7 +131,7 @@ and adds it to 'id'-hook
             for fn-name = (sh-gensym (quote ,id) mode :mode-hook)
             do
             (fset fn-name (-partial (lambda (val) ,@body) ,val))
-            if (s-suffix? "-hook" (format "%s" mode))
+            if (and (symbolp mode) (s-suffix? "-hook" (symbol-name mode)))
             do      (add-hook mode fn-name)
             else do (add-hook (intern (format "%s-hook" mode)) fn-name)
             )
@@ -227,7 +227,7 @@ and adds it to 'id'-hook
                   )
                 )
               )
-        (add-hook (quote sh-hook) (function ,apply-fn-name))
+        (add-hook (quote sh-hook) ,apply-fn-name)
         (provide (quote ,feature-name))
         (sh-cleanup-after-provide (quote ,feature-name))
         (quote ,feature-name)
@@ -253,7 +253,7 @@ Each Spec registered added to the  `key'-hook
          (vals  (make-symbol "vals"))
          (unless-check (pcase override
                          ('nil `((-contains? sh-hook (function ,apply-fn-name))))
-                         ('t (nil))))
+                         ('t '(nil))))
          (clean-body (pop-plist-from-body! body))
          (docstring (format sh-doc-str id fname (list :hook t)
                             (s-concat doc (when struct (format "\n\nExpected Struct: %s" struct)))))
@@ -261,7 +261,7 @@ Each Spec registered added to the  `key'-hook
     (cl-assert clean-body t "Body of a spec handling hook instance can not be empty")
     `(unless ,@unless-check
        (cl-assert (or ,override (not (fboundp (function ,apply-fn-name))))  t
-                  (format "Hook Handler is already defined: %s" apply-fn-name))
+                  ,(format "Hook Handler is already defined: %s" apply-fn-name))
        (sh-add-source (quote ,id) ,fname 'hook :doc ,doc :struct ,struct)
        (defvar ,table-name (make-hash-table :test 'equal)
          ,(format "Macro generated hash-table to store specs for %s" id))
@@ -303,7 +303,7 @@ mode-priority allows mode-specific priority hook control
          (fname (macroexp-file-name))
          (clean-vals (pop-plist-from-body! vals))
          (hook-body (if mode
-                        `(add-hook ,(intern (format "%s-hook" mode))
+                        `(add-hook (quote ,(intern (format "%s-hook" mode)))
                           (function ,set-mode-name) ,(or mode-priority 50))
                       `(setq ,@clean-vals)))
          (mode-hook (when mode
