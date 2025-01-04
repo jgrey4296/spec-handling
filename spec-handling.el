@@ -227,7 +227,7 @@ and adds it to 'id'-hook
                   )
                 )
               )
-        (add-hook (quote sh-hook) ,apply-fn-name)
+        (add-hook (quote sh-hook) (function ,apply-fn-name))
         (provide (quote ,feature-name))
         (sh-cleanup-after-provide (quote ,feature-name))
         (quote ,feature-name)
