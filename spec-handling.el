@@ -1,4 +1,21 @@
-;;; spec-handling.el -*- lexical-binding: t; no-byte-compile: t;  -*-
+;;; spec-handling.el --- Declarative, repeatable startup specs -*- lexical-binding: t; no-byte-compile: t;  -*-
+
+;; Copyright (C) 2025 john
+;;
+;; Author: john <https://github.com/jgrey4296>
+;; Created: October 29, 2025
+;; Modified: October 29, 2025
+;; Version: 1.0.0
+;; Keywords:
+;; Homepage: https://github.com/jgrey4296/spec-handling
+;; Package-Requires: ((emacs "30.2") (dash) (cl-lib) (benchmark) (helpful) (macro-tools))
+;; Package written on: ((emacs 30.2))
+;;
+;; This file is not part of GNU Emacs.
+;;
+
+;;; Commentary:
+
 (eval-when-compile
   (require 'dash)
   (require 'cl-lib)
@@ -498,9 +515,7 @@ eg: (spechandling-add! someHandler '(blah :bloo val :blee val))
 (defvaralias 'speckler-hook 'spec-handling-hook)
 
 (provide 'spec-handling)
-
-;; company
-;; eval-handler
+;;; spec-handling.el ends here
 ;; Local Variables:
 ;; read-symbol-shorthands: (
 ;; ("sh-" . "spec-handling-")
