@@ -5,11 +5,10 @@
          "Declarative, repeatable startup specs")
 
 (website-url "https://github.com/jgrey4296/spec-handling")
-(keywords )
+(keywords "declarative")
 
-(package-file "spec-handling.el")
-
-(script "test" "echo \"Error: no test specified\" && exit 1")
+(package-descriptor "spec-handling-pkg.el")
+(files "./spec-handling.el")
 
 (source "gnu")
 (source "melpa")
